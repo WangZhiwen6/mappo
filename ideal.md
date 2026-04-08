@@ -20,3 +20,15 @@
 “新风比例”在 EnergyPlus 里通常是结果，不是直接的 actuator 名称。
 
 用 Air System Outdoor Air Flow Fraction 做闭环反馈。
+
+一个重要约束：
+
+你当前 MAPPO 实现要求 action_dim 可被 n_agents 整除（每个 agent 动作维数一致）。
+现在是 56 agent + 56 动作，刚好匹配。
+如果你直接加 1 个“全局新风动作”变成 57，会破坏这个假设。
+
+工程上更稳的两种做法：
+
+保持现有 MAPPO 控 56 个区，另加一个外层控制器（规则/PI/超启发式）专门控新风比例。
+
+改 MAPPO 为异构动作头（区域动作 + 全局新风动作），工作量更大。
