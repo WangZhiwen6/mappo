@@ -61,6 +61,22 @@ class LoggerCallback(BaseCallback):
         self.timestep = 1
         self.episode_num = 1
 
+    def _extract_last_env_observation(
+        self, observation: Union[np.ndarray, Dict[str, np.ndarray]]
+    ) -> np.ndarray:
+        """
+        Extract the last environment observation from either:
+        - a standard vectorized ndarray observation, or
+        - a vectorized dict observation produced by the CTDE wrapper.
+        """
+        if isinstance(observation, dict):
+            if 'global_state' in observation:
+                return observation['global_state'][-1]
+            raise KeyError(
+                "Dict observation does not contain 'global_state', cannot align with observation_variables."
+            )
+        return observation[-1]
+
     def _on_step(self) -> bool:
 
         # New timestep
@@ -73,7 +89,7 @@ class LoggerCallback(BaseCallback):
         # log normalized and original values
         if self.training_env.env_is_wrapped(
                 wrapper_class=NormalizeObservation)[0]:
-            obs_normalized = self.locals['new_obs'][-1]
+            obs_normalized = self._extract_last_env_observation(self.locals['new_obs'])
             obs = self.training_env.get_attr('unwrapped_observation')[-1]
             for i, variable in enumerate(observation_variables):
                 self.logger.record(
@@ -82,7 +98,7 @@ class LoggerCallback(BaseCallback):
                     'observation/' + variable, obs[i])
         # Only original values
         else:
-            obs = self.locals['new_obs'][-1]
+            obs = self._extract_last_env_observation(self.locals['new_obs'])
             for i, variable in enumerate(observation_variables):
                 self.logger.record(
                     'observation/' + variable, obs[i])

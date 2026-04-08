@@ -29,6 +29,7 @@ import numpy as np
 import mygym
 import mygym.utils.gcloud as gcloud
 from gymnasium.wrappers.stateful_reward import NormalizeReward
+from mygym.utils.multi_agent import CTDEDictObservationWrapper
 from mygym.utils.callbacks import *
 from mygym.utils.constants import *
 from mygym.utils.logger import CSVLogger, WandBOutputFormat
@@ -38,7 +39,7 @@ from mygym.utils.wrappers import *
 from myrppo.common.callbacks import CallbackList
 from myrppo.common.logger import HumanOutputFormat
 from myrppo.common.logger import Logger as SB3Logger
-from myrppo.ppo_recurrent import RecurrentPPO
+from myrppo.mappo_recurrent import RecurrentMAPPO
 
 new_variables = {
         # 环境变量 (温度、湿度、风速、风向、太阳辐射、太阳位置等)
@@ -260,7 +261,7 @@ def main() -> None:
     environment = "Eplus-carbon-mixed-continuous-stochastic-v1"
     episodes = 200
     experiment_date = datetime.today().strftime("%Y-%m-%d-%H_%M")
-    experiment_name = f"RPPO-{environment}-episodes-{episodes}_{experiment_date}"
+    experiment_name = f"MAPPO-LSTM-{environment}-episodes-{episodes}_{experiment_date}"
 
     extra_params = {"timesteps_per_hour": 6, "runperiod": (1, 7, 2006, 31, 7, 2006)}
 
@@ -279,14 +280,19 @@ def main() -> None:
     env = NormalizeAction(env)
     env = NormalizeReward(env)
     env = LoggerWrapper(env)
+    env = CTDEDictObservationWrapper(env, include_agent_id=True)
 
-    model = RecurrentPPO(
-        "MlpLstmPolicy",
+    model = RecurrentMAPPO(
+        "MlpMAPPOLstmPolicy",
         env,
         batch_size=64,
         n_steps=1024,
         verbose=1,
-        policy_kwargs=dict(lstm_hidden_size=256, n_lstm_layers=3),
+        policy_kwargs=dict(
+            lstm_hidden_size=256,
+            n_lstm_layers=2,
+            net_arch=dict(pi=[128, 128], vf=[256, 256]),
+        ),
     )
 
     callbacks = []
